@@ -1,4 +1,4 @@
-<?php 
+<?php
 class DatabaseConfig
 {
     public static $host = 'localhost';

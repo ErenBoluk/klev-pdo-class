@@ -19,7 +19,7 @@ class KlevPDO
         try {
             $dsn = "mysql:host=" . DatabaseConfig::$host . ";dbname=" . DatabaseConfig::$dbName . ";charset=" . DatabaseConfig::$charset;
             $this->db = new PDO($dsn, DatabaseConfig::$username, DatabaseConfig::$password, DatabaseConfig::$options);
-            $this->createTable($logTableStracture);
+            $this->tableOperation($logTableStracture, false, false);
         } catch (PDOException $e) {
             throw new Exception("Bağlantı hatası: " . $e->getMessage());
         }
@@ -35,7 +35,7 @@ class KlevPDO
         return $stmt;
     }
 
-    public function select($query, $params = false,$log = true)
+    public function select($query, $params = false, $log = true)
     {
         $status = false;
         $err = null;
@@ -55,7 +55,7 @@ class KlevPDO
         return array('status' => $status, 'data' => $data, 'rc' => $rc);
     }
 
-    public function insert($query, $params = false , $log = true)
+    public function insert($query, $params = false, $log = true)
     {
         $status = false;
         $err = null;
@@ -68,7 +68,6 @@ class KlevPDO
             $err = "Ekleme hatası: " . $e->getMessage();
         }
         if ($log) {
-            
             $this->log($query, 'insert', $params, $err);
         }
         return array('status' => $status, 'id' => $id);
@@ -77,6 +76,7 @@ class KlevPDO
     public function update($query, $params = false, $log = true)
     {
         $status = false;
+        $err = null;
         try {
             $stmt = $this->execute($query, $params);
             $status = true;
@@ -89,18 +89,7 @@ class KlevPDO
         return $status;
     }
 
-    public function delete($query, $params = false)
-    {
-        $status = false;
-        try {
-            $stmt = $this->execute($query, $params);
-            $status = true;
-        } catch (PDOException $e) {
-            throw new Exception("Silme hatası: " . $e->getMessage());
-        }
-        return $status;
-    }
-    public function createTable($query, $params = false, $log = true)
+    public function delete($query, $params = false, $log = true)
     {
         $status = false;
         $err = null;
@@ -108,10 +97,25 @@ class KlevPDO
             $stmt = $this->execute($query, $params);
             $status = true;
         } catch (PDOException $e) {
-            $err = "CreateTableError: " . $e->getMessage();
+            $err = "Delete Error: " . $e->getMessage();
         }
         if ($log) {
-            $this->log($query, 'Create Table', $params, $err);
+            $this->log($query, 'delete', $params, $err);
+        }
+        return $status;
+    }
+    public function tableOperation($query, $params = false, $log = true)
+    {
+        $status = false;
+        $err = null;
+        try {
+            $stmt = $this->execute($query, $params);
+            $status = true;
+        } catch (PDOException $e) {
+            $err = "Table Operation Error: " . $e->getMessage();
+        }
+        if ($log) {
+            $this->log($query, 'Table Operation', $params, $err);
         }
         return $status;
     }
@@ -120,10 +124,10 @@ class KlevPDO
     public function getTableName($query)
     {
         if (stripos($query, 'update') === 0) {
-            // Separate the table name for the UPDATE query : UPDATE querysu için tablo adını ayır
+            // Separate the table name for the UPDATE query : UPDATE query'si için tablo adını ayır
             $pattern = '/\bUPDATE\s+\`?(\w+)\`?/i';
         } else {
-            // Diğer query türleri için FROM ifadesinden sonra gelen ilk kelimeyi ayır : Separate the first word after the FROM expression for other query types
+            //Separate the first word after the FROM expression for other query types :  Diğer query türleri için FROM ifadesinden sonra gelen ilk kelimeyi ayır
             $pattern = '/\bFROM\s+\`?(\w+)\`?/i';
         }
         preg_match($pattern, $query, $matches);
@@ -148,6 +152,6 @@ class KlevPDO
             'params' => json_encode($queryDetail),
             'error' => $error
         );
-        return $this->insert($query, $params,false);
+        return $this->insert($query, $params, false);
     }
 }
