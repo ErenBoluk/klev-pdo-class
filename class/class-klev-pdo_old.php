@@ -5,21 +5,9 @@ class KlevPDO
 
     public function __construct()
     {
-        $logTableStracture = "
-        CREATE TABLE IF NOT EXISTS pdoLog (
-            logId INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            logIp VARCHAR(45),
-            logTableName VARCHAR(50),
-            logAction VARCHAR(10),
-            logParams TEXT,
-            logError TEXT,
-            logCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );";
-
         try {
             $dsn = "mysql:host=" . DatabaseConfig::$host . ";dbname=" . DatabaseConfig::$dbName . ";charset=" . DatabaseConfig::$charset;
             $this->db = new PDO($dsn, DatabaseConfig::$username, DatabaseConfig::$password, DatabaseConfig::$options);
-            $this->createTable($logTableStracture);
         } catch (PDOException $e) {
             throw new Exception("Bağlantı hatası: " . $e->getMessage());
         }
@@ -31,14 +19,16 @@ class KlevPDO
             $stmt->execute($params);
         } else {
             $stmt = $this->db->query($query);
+
         }
         return $stmt;
     }
 
-    public function select($query, $params = false,$log = true)
+    public function select($query, $params)
     {
+        var_dump($params);
+
         $status = false;
-        $err = null;
         $data = null;
         $rc = 0;
         try {
@@ -47,44 +37,33 @@ class KlevPDO
             $rc = $stmt->rowCount();
             $status = true;
         } catch (PDOException $e) {
-            $err = "Query Error: " . $e->getMessage();
-        }
-        if ($log) {
-            $this->log($query, 'select', $params, $err);
+            throw new Exception("query hatası: " . $e->getMessage());
         }
         return array('status' => $status, 'data' => $data, 'rc' => $rc);
     }
 
-    public function insert($query, $params = false , $log = true)
+    public function insert($query, $params = false)
     {
         $status = false;
-        $err = null;
         $id = 0;
         try {
             $stmt = $this->execute($query, $params);
             $id = $this->db->lastInsertId();
             $status = true;
         } catch (PDOException $e) {
-            $err = "Ekleme hatası: " . $e->getMessage();
-        }
-        if ($log) {
-            
-            $this->log($query, 'insert', $params, $err);
+            throw new Exception("Ekleme hatası: " . $e->getMessage());
         }
         return array('status' => $status, 'id' => $id);
     }
 
-    public function update($query, $params = false, $log = true)
+    public function update($query, $params = false)
     {
         $status = false;
         try {
             $stmt = $this->execute($query, $params);
             $status = true;
         } catch (PDOException $e) {
-            $err = "Güncelleme hatası: " . $e->getMessage();
-        }
-        if ($log) {
-            $this->log($query, 'update', $params, $err);
+            throw new Exception("Güncelleme hatası: " . $e->getMessage());
         }
         return $status;
     }
@@ -100,21 +79,6 @@ class KlevPDO
         }
         return $status;
     }
-    public function createTable($query, $params = false, $log = true)
-    {
-        $status = false;
-        $err = null;
-        try {
-            $stmt = $this->execute($query, $params);
-            $status = true;
-        } catch (PDOException $e) {
-            $err = "CreateTableError: " . $e->getMessage();
-        }
-        if ($log) {
-            $this->log($query, 'Create Table', $params, $err);
-        }
-        return $status;
-    }
 
     // Required functional functions : Gerekli işlevsel fonksiyonlar
     public function getTableName($query)
@@ -127,27 +91,19 @@ class KlevPDO
             $pattern = '/\bFROM\s+\`?(\w+)\`?/i';
         }
         preg_match($pattern, $query, $matches);
-        return isset($matches[1]) ? $matches[1] : false;
-    }
-
-    // Log function : Log fonksiyonu
-    public function log($pquery, $action, $params, $error)
-    {
-        $query = "INSERT INTO pdoLog SET logIp=:ip,  logTableName=:tableName, logAction=:action, logParams=:params, logError=:error";
-        $tableName = $this->getTableName($pquery);
-        $queryDetail = array(
-            'tableName' => $tableName,
-            'action' => $action,
-            'query' => $pquery,
-            'params' => $params,
-        );
-        $params = array(
-            'ip' => $_SERVER['REMOTE_ADDR'],
-            'tableName' => $tableName,
-            'action' => $action,
-            'params' => json_encode($queryDetail),
-            'error' => $error
-        );
-        return $this->insert($query, $params,false);
+        return isset($matches[1]) ? $matches[1] : null;
     }
 }
+/*
+    logpdo database table : logpdo veritabanı tablosu
+
+    CREATE TABLE IF NOT EXISTS pdoLog (
+        logId INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        logTableName VARCHAR(50),
+        logAction VARCHAR(10),
+        logParams TEXT,
+        logError TEXT,
+        logCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+*/
